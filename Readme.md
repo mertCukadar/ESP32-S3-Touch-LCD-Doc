@@ -192,13 +192,185 @@ After completing all of these setup steps, you can flash the sample **Hello Worl
 
 Once you confirm that everything is working correctly, we can continue with the basics of LVGL — including page structures, UI components, and event handling.
 
-you can reach th edemo project from the site which u can find from referances [3]
+you can reach the demo project from the site which u can find from referances [4]
 ---
 
 ## 5. GUI Development (HMI GUI)
-- Page structure
-- UI components: buttons, sliders, text
-- Event handling
+demo project already have configured variables. for the first time you flashing it's may take a while be patient. after we open our project and it's barely visible on our display let's look what we have.
+
+lv demos are come from lvgl component to learn the basics we have recomend u to study from lvgl's online latest documantation.[5]
+
+```C
+/*
+ * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: CC0-1.0
+ */
+
+#include "waveshare_rgb_lcd_port.h"
+
+void app_main()
+{
+    waveshare_esp32_s3_rgb_lcd_init(); // Initialize the Waveshare ESP32-S3 RGB LCD 
+    // wavesahre_rgb_lcd_bl_on();  //Turn on the screen backlight 
+    // wavesahre_rgb_lcd_bl_off(); //Turn off the screen backlight 
+    
+    ESP_LOGI(TAG, "Display LVGL demos");
+    // Lock the mutex due to the LVGL APIs are not thread-safe
+    if (lvgl_port_lock(-1)) {
+        // lv_demo_stress();
+        // lv_demo_benchmark();
+        // lv_demo_music();
+        //lv_demo_widgets();
+        // example_lvgl_demo_ui();
+        // Release the mutex
+        lvgl_port_unlock();
+    }
+}
+
+```
+
+the code u have seen above is our main.c code u can try demo projects by just uncomment the functions whic is in if block contains `lvgl_port_lock(-1)` statement.
+
+lvlgl is nor thread protected this couses conflicts when ur buffer is writen to display. So every display arguments need to stay on the if block we have mentioned above. While u keep practicing keep this in mind. 
+
+before we start you may want to take a look default displays to clearify what's going on behind lvgl.[6]
+
+### Get Started with the Basics
+
+At first, using the LVGL library may seem a bit confusing.  
+But simply put, in this library, every widget is treated as an object and must be defined as a pointer.  
+This allows us to access and manipulate the widgets later when needed.
+
+### Example: Displaying a Simple "Hello World" Message
+
+In this example, we initialize the Waveshare ESP32-S3 RGB LCD screen and use LVGL to display a simple **"Hello C2G!"** message at the center of the screen.
+```C
+//main.c
+
+#include "waveshare_rgb_lcd_port.h"
+
+// Custom Hello World LVGL function
+void lv_get_started_hello_world(void) {
+    lv_obj_t *label = lv_label_create(lv_scr_act());     // Create label on current screen
+    lv_label_set_text(label , "Hello C2G!");             // Set text
+    lv_obj_align(label , LV_ALIGN_CENTER , 0, 0);        // Center the label
+}
+
+void app_main()
+{
+    waveshare_esp32_s3_rgb_lcd_init(); // Initialize LCD
+    // wavesahre_rgb_lcd_bl_on();      // Optional: Turn on backlight
+    // wavesahre_rgb_lcd_bl_off();     // Optional: Turn off backlight
+
+    ESP_LOGI(TAG, "Display LVGL demos");
+
+    if (lvgl_port_lock(-1)) {
+        lv_get_started_hello_world();  // Show label
+        lvgl_port_unlock();            // Release LVGL mutex
+    }
+}
+
+```
+
+
+
+Here’s what happens step by step:
+
+- **Screen Initialization**: The function `waveshare_esp32_s3_rgb_lcd_init()` initializes the LCD screen, sets up LVGL, and prepares the framebuffer.
+
+- **Creating a Label**: A label object is created using `lv_label_create(lv_scr_act())`, which places the label on the currently active screen.
+
+- **Setting Text**: The label’s text is set to `"Hello C2G!"` using `lv_label_set_text()`.
+
+- **Centering the Label**: The label is centered on the screen with `lv_obj_align()`.
+
+- **Thread Safety**: LVGL is not thread-safe by default, so `lvgl_port_lock()` and `lvgl_port_unlock()` are used to safely perform UI operations.
+
+This is a basic but essential step to start building user interfaces with LVGL. Once you understand how to create and place widgets like labels, you can expand to more interactive elements such as buttons, sliders, and input fields.
+
+we are going to talk about event handling method's and cover the basic concepts about it.
+
+### Event Handling basic operations
+```C
+//main.c
+
+#include "waveshare_rgb_lcd_port.h"
+
+
+static int counter = 0; // Global counter variable
+static lv_obj_t * counter_label;
+
+static void counter_btn_event_cb(lv_event_t *e) {
+    if(lv_event_get_code(e) == LV_EVENT_PRESSED){
+        counter++; // Increment counter on button click
+        lv_label_set_text_fmt(counter_label, "Counter: %d", counter); // Update
+    }
+}
+
+void lv_get_started_counter_ui(void){
+    counter_label = lv_label_create(lv_scr_act()); // Create label for counter
+    lv_label_set_text_fmt(counter_label, "Counter: %d", counter); // Set
+
+    lv_obj_t * btn = lv_btn_create(lv_scr_act()); // Create button
+    lv_obj_t * btn_label = lv_label_create(btn); // Create label for button
+    lv_label_set_text(btn_label, "Click Me!");   // Set button label text
+    
+    lv_obj_set_size(btn, 100, 50);               // Set button size
+    lv_obj_align(btn, LV_ALIGN_CENTER, 0, 0);    // Center
+
+    lv_obj_add_event_cb(btn, counter_btn_event_cb, LV_EVENT_PRESSED, NULL); // Add event callback for button click
+    lv_obj_align(counter_label, LV_ALIGN_TOP_MID, 0, 20);
+
+}
+
+void app_main()
+{
+    waveshare_esp32_s3_rgb_lcd_init(); // Initialize LCD
+    // wavesahre_rgb_lcd_bl_on();      // Optional: Turn on backlight
+    // wavesahre_rgb_lcd_bl_off();     // Optional: Turn off backlight
+
+    ESP_LOGI(TAG, "Display LVGL demos");
+
+    if (lvgl_port_lock(-1)) {
+        //lv_get_started_hello_world();  // Show label
+        lv_get_started_counter_ui();    // Show counter UI
+        lvgl_port_unlock();            // Release LVGL mutex
+    }
+}
+
+```
+
+### 🧮 Event Handling Example: Button-Triggered Counter
+
+In this example, we implement a basic **event handling mechanism** using LVGL. A button is created on the screen, and each time it is pressed, a counter increases and the updated value is shown on the screen.
+
+#### 🔧 Key Components
+
+- **Global Counter**: An integer variable is used to keep track of the number of button presses. It is stored in a static variable for limited scope within the file.
+
+- **Label for Counter Display**: A label object is created on the active screen (`lv_scr_act()`) to show the current counter value.
+
+- **Button Creation**: A button is placed at the center of the screen using `lv_btn_create()` and is sized and labeled appropriately.
+
+- **Event Callback Function**: A callback function is defined to handle the `LV_EVENT_PRESSED` event. Each time the button is pressed, this function is triggered, and the counter is incremented.
+
+- **Event Binding**: The callback is linked to the button using `lv_obj_add_event_cb()`. The `LV_EVENT_PRESSED` event code ensures that the handler is only triggered when the button is physically pressed.
+
+#### 🧠 What Happens in the Flow?
+
+1. The LCD is initialized.
+2. A counter label and a button with its own label ("Click Me!") are created and placed on the screen.
+3. When the user presses the button:
+   - The event handler is triggered.
+   - The global counter is incremented.
+   - The label displaying the count is updated using `lv_label_set_text_fmt()`.
+
+This example demonstrates the fundamentals of **event-driven programming in LVGL** and serves as a foundation for more complex interactions like toggles, navigation, or UI state changes.
+
+
+### Page Structre and Conventions
+...
 
 ---
 
@@ -222,17 +394,15 @@ you can reach th edemo project from the site which u can find from referances [3
 - Ensuring stable performance
 
 ---
-
-## 9. Additional Resources
-- Datasheets
-- GitHub sample projects
-- Forums and tutorial links
-
 ## Referances
 [1] https://docs.espressif.com/projects/esp-idf/en/v5.4.2/esp32s3/get-started/index.html#what-you-need
 
 [2] https://docs.espressif.com/projects/esp-idf/en/v5.4.2/esp32s3/get-started/index.html#what-you-need
 
-[3] https://files.waveshare.com/wiki/ESP32-S3-Touch-LCD-7/ESP32-S3-Touch-LCD-7-Demo.zip
+[3] https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-7#Precautions
 
 [4] https://files.waveshare.com/wiki/ESP32-S3-Touch-LCD-7/ESP32-S3-Touch-LCD-7-Demo.zip
+
+[5] https://docs.lvgl.io/master/intro/introduction.html
+
+[6] https://docs.lvgl.io/master/details/main-modules/display/screen_layers.html
